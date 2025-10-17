@@ -1,5 +1,10 @@
 """Application settings and configuration"""
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve repository paths for defaults (avoids cwd-dependent behavior)
+APP_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DB_PATH = APP_ROOT / "pipeline.db"
 
 
 class Settings(BaseSettings):
@@ -11,7 +16,7 @@ class Settings(BaseSettings):
     api_reload: bool = True
 
     # Database
-    database_url: str = "sqlite:///./pipeline.db"
+    database_url: str = f"sqlite:///{DEFAULT_DB_PATH.as_posix()}"
 
     # Redpanda/Kafka
     redpanda_brokers: str = "localhost:19092"

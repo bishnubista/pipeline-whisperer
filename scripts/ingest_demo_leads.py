@@ -6,10 +6,15 @@ Simulates Lightfield CRM webhook sending leads to Pipeline Whisperer
 import sys
 import logging
 import time
+from pathlib import Path
 
-# Add paths for imports
-sys.path.insert(0, '/Users/bishnubista/Projects/hackathon/pipeline-whisperer-agent/apps/agent-api')
-sys.path.insert(0, '/Users/bishnubista/Projects/hackathon/pipeline-whisperer-agent')
+# Add repository paths for imports so the script works on any machine
+REPO_ROOT = Path(__file__).resolve().parents[1]
+APP_ROOT = REPO_ROOT / "apps" / "agent-api"
+for path in (APP_ROOT, REPO_ROOT):
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 from services.simulators.lightfield_simulator import LightfieldSimulator
 from app.services.kafka_producer import get_kafka_producer

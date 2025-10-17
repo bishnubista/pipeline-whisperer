@@ -6,14 +6,20 @@ import json
 import logging
 import sys
 import signal
+from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime, timezone
 from confluent_kafka import Consumer, KafkaException
 from sqlalchemy.orm import Session
 import sentry_sdk
 
-# Add parent directories to path for imports
-sys.path.insert(0, '/Users/bishnubista/Projects/hackathon/pipeline-whisperer-agent/apps/agent-api')
+# Add repository paths for local imports (avoids machine-specific absolute paths)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+APP_ROOT = REPO_ROOT / "apps" / "agent-api"
+for path in (APP_ROOT, REPO_ROOT):
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 from app.config.settings import settings
 from app.models.base import SessionLocal
