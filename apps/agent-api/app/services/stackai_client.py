@@ -10,6 +10,12 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
+# Import settings for accessing environment variables
+try:
+    from app.config.settings import settings as app_settings
+except ImportError:
+    app_settings = None
+
 
 class StackAIClient:
     """Client for Stack AI lead scoring workflow"""
@@ -21,10 +27,17 @@ class StackAIClient:
         flow_id: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
-        self.api_key = api_key or os.getenv("STACKAI_API_KEY")
-        self.org_id = org_id or os.getenv("STACKAI_ORG_ID")
-        self.flow_id = flow_id or os.getenv("STACKAI_FLOW_ID")
-        self.base_url = (base_url or os.getenv("STACKAI_BASE_URL", "https://api.stack-ai.com")).rstrip("/")
+        # Try to get from settings first, then fall back to environment variables
+        if app_settings:
+            self.api_key = api_key or app_settings.stackai_api_key or os.getenv("STACKAI_API_KEY")
+            self.org_id = org_id or app_settings.stackai_org_id or os.getenv("STACKAI_ORG_ID")
+            self.flow_id = flow_id or app_settings.stackai_flow_id or os.getenv("STACKAI_FLOW_ID")
+            self.base_url = (base_url or app_settings.stackai_base_url or os.getenv("STACKAI_BASE_URL", "https://api.stack-ai.com")).rstrip("/")
+        else:
+            self.api_key = api_key or os.getenv("STACKAI_API_KEY")
+            self.org_id = org_id or os.getenv("STACKAI_ORG_ID")
+            self.flow_id = flow_id or os.getenv("STACKAI_FLOW_ID")
+            self.base_url = (base_url or os.getenv("STACKAI_BASE_URL", "https://api.stack-ai.com")).rstrip("/")
 
         # Check if we should use mock mode
         if not self.api_key or self.api_key.startswith("your_") or not self.org_id or not self.flow_id:
