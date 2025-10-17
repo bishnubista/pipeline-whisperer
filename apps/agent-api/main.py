@@ -8,14 +8,24 @@ from contextlib import asynccontextmanager
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
 
-# Initialize Sentry
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN_PYTHON"),
-    traces_sample_rate=1.0,
-    profiles_sample_rate=1.0,
-    environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
-)
+from app.routes import leads_router
+from app.models.base import SessionLocal
+from app.models.lead import Lead
+
+# Initialize Sentry (only if DSN is configured and valid)
+sentry_dsn = os.getenv("SENTRY_DSN_PYTHON")
+if sentry_dsn and not sentry_dsn.startswith("https://your_"):
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+    )
+    print("✅ Sentry monitoring enabled")
+else:
+    print("ℹ️  Sentry monitoring disabled (DSN not configured)")
 
 
 @asynccontextmanager
@@ -50,6 +60,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(leads_router)
+
 
 @app.get("/")
 async def root():
@@ -75,12 +88,22 @@ async def health():
 
 @app.get("/metrics")
 async def metrics():
-    """Basic metrics endpoint"""
-    return {
-        "leads_processed": 0,
-        "outreach_sent": 0,
-        "conversions": 0,
-    }
+    """Basic metrics endpoint with real data"""
+    db = SessionLocal()
+    try:
+        total_leads = db.query(func.count(Lead.id)).scalar() or 0
+        scored_leads = db.query(func.count(Lead.id)).filter(Lead.score.isnot(None)).scalar() or 0
+        avg_score = db.query(func.avg(Lead.score)).scalar() or 0.0
+
+        return {
+            "leads_total": total_leads,
+            "leads_scored": scored_leads,
+            "avg_score": round(avg_score, 3),
+            "outreach_sent": 0,  # TODO: implement
+            "conversions": 0,  # TODO: implement
+        }
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
