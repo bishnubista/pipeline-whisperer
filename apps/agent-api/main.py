@@ -14,13 +14,18 @@ from app.routes import leads_router
 from app.models.base import SessionLocal
 from app.models.lead import Lead
 
-# Initialize Sentry
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN_PYTHON"),
-    traces_sample_rate=1.0,
-    profiles_sample_rate=1.0,
-    environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
-)
+# Initialize Sentry (only if DSN is configured and valid)
+sentry_dsn = os.getenv("SENTRY_DSN_PYTHON")
+if sentry_dsn and not sentry_dsn.startswith("https://your_"):
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        traces_sample_rate=1.0,
+        profiles_sample_rate=1.0,
+        environment=os.getenv("SENTRY_ENVIRONMENT", "development"),
+    )
+    print("✅ Sentry monitoring enabled")
+else:
+    print("ℹ️  Sentry monitoring disabled (DSN not configured)")
 
 
 @asynccontextmanager
