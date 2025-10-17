@@ -1,0 +1,225 @@
+===========================================
+STACK AI LEAD SCORING WORKFLOW - PROMPTS
+===========================================
+
+This file contains copy-paste ready prompts for your Stack AI workflow.
+
+===========================================
+SYSTEM PROMPT (for LLM Node)
+===========================================
+
+You are an expert B2B lead qualification system. Your job is to analyze company information and provide:
+
+1. A quality score from 0.0 to 1.0
+2. A persona classification (enterprise or smb)
+3. Brief reasoning
+
+Scoring Criteria:
+- High Score (0.8-1.0): Large companies, strong revenue, strategic industries (technology, finance, healthcare)
+- Medium Score (0.5-0.79): Mid-market companies with growth potential
+- Low Score (0.0-0.49): Small companies or low-fit industries
+
+Persona Rules:
+- Enterprise: 500+ employees OR $10M+ annual revenue
+- SMB: <500 employees AND <$10M annual revenue
+
+IMPORTANT: Return raw JSON only. Do not wrap in markdown code blocks. Do not include ```json or ``` tags.
+
+Always respond in valid JSON format with exactly this structure:
+{
+  "score": 0.85,
+  "persona": "enterprise",
+  "reasoning": "Brief explanation here"
+}
+
+===========================================
+USER PROMPT (for LLM Node) - JSON Input
+===========================================
+
+Analyze this lead and provide scoring:
+
+Company Name: {{company_name}}
+Industry: {{industry}}
+Employee Count: {{employee_count}}
+Annual Revenue: ${{revenue}}
+Website: {{website}}
+
+Return ONLY valid JSON (no code blocks, no markdown):
+{
+  "score": 0.85,
+  "persona": "enterprise",
+  "reasoning": "Brief explanation here"
+}
+
+===========================================
+USER PROMPT (Alternative) - Sequential Inputs (in-0, in-1)
+===========================================
+
+Use this version if Stack AI names inputs as in-0, in-1, in-2, etc.
+
+Analyze this lead and provide scoring:
+
+Company Name: {{in-0}}
+Industry: {{in-1}}
+Employee Count: {{in-2}}
+Annual Revenue: ${{in-3}}
+Website: {{in-4}}
+
+Return ONLY valid JSON (no code blocks, no markdown):
+{
+  "score": 0.85,
+  "persona": "enterprise",
+  "reasoning": "Brief explanation here"
+}
+
+===========================================
+TEST INPUTS
+===========================================
+
+--- Test Case 1: Enterprise Lead ---
+{
+  "company_name": "MegaRetail Co",
+  "industry": "retail",
+  "employee_count": 1200,
+  "revenue": 25000000,
+  "website": "megaretail.com"
+}
+
+Expected Output:
+{
+  "score": 0.92,
+  "persona": "enterprise",
+  "reasoning": "Large retail company with 1200 employees and $25M revenue. Strong enterprise fit."
+}
+
+--- Test Case 2: SMB Lead ---
+{
+  "company_name": "StartupHub",
+  "industry": "technology",
+  "employee_count": 15,
+  "revenue": 500000,
+  "website": "startuphub.io"
+}
+
+Expected Output:
+{
+  "score": 0.68,
+  "persona": "smb",
+  "reasoning": "Small tech startup with 15 employees and $500K revenue. Growth potential but SMB segment."
+}
+
+--- Test Case 3: High-Value Enterprise ---
+{
+  "company_name": "CloudScale Systems",
+  "industry": "technology",
+  "employee_count": 850,
+  "revenue": 45000000,
+  "website": "cloudscale.com"
+}
+
+Expected Output:
+{
+  "score": 0.94,
+  "persona": "enterprise",
+  "reasoning": "Large technology company with 850 employees and $45M revenue. Excellent enterprise fit with high revenue."
+}
+
+--- Test Case 4: Low-Fit Lead ---
+{
+  "company_name": "Local Pizza Shop",
+  "industry": "food_service",
+  "employee_count": 8,
+  "revenue": 200000,
+  "website": "localpizza.com"
+}
+
+Expected Output:
+{
+  "score": 0.32,
+  "persona": "smb",
+  "reasoning": "Small food service business with 8 employees and $200K revenue. Low fit for B2B SaaS product."
+}
+
+--- Test Case 5: Mid-Market ---
+{
+  "company_name": "FinanceFlow LLC",
+  "industry": "finance",
+  "employee_count": 250,
+  "revenue": 8000000,
+  "website": "financeflow.com"
+}
+
+Expected Output:
+{
+  "score": 0.78,
+  "persona": "smb",
+  "reasoning": "Mid-sized finance company with 250 employees and $8M revenue. Strong potential but just below enterprise threshold."
+}
+
+===========================================
+CURL TEST COMMAND
+===========================================
+
+After deploying, test with this curl command:
+(Replace {ORG_ID}, {FLOW_ID}, and {API_KEY} with your actual values)
+
+curl -X POST https://api.stack-ai.com/inference/v0/run/{ORG_ID}/{FLOW_ID} \
+  -H "Authorization: Bearer {PRIVATE_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company_name": "TechCorp Inc",
+    "industry": "technology",
+    "employee_count": 500,
+    "revenue": 15000000,
+    "website": "techcorp.com"
+  }'
+
+===========================================
+WORKFLOW CONFIGURATION
+===========================================
+
+Model: GPT-4 or Claude 3.5 Sonnet (recommended)
+Temperature: 0.3 (for consistent scoring)
+Max Tokens: 200
+Response Format: JSON
+
+Input Schema:
+{
+  "company_name": "string",
+  "industry": "string",
+  "employee_count": "number",
+  "revenue": "number",
+  "website": "string"
+}
+
+Output Schema:
+{
+  "score": "number (0.0-1.0)",
+  "persona": "string (enterprise or smb)",
+  "reasoning": "string"
+}
+
+===========================================
+INTEGRATION CHECKLIST
+===========================================
+
+After deployment, provide these to the integration team:
+
+☐ org_id (from API endpoint URL)
+☐ flow_id (from API endpoint URL)
+☐ Private API Key (from API keys page)
+☐ Input format (JSON object or in-0/in-1 format?)
+☐ Test curl command output (verify it works)
+
+===========================================
+NOTES
+===========================================
+
+- If the LLM sometimes wraps JSON in code blocks, adjust the system prompt to be more explicit
+- If scores are inconsistent, lower temperature to 0.1
+- If you need more detailed reasoning, increase max_tokens to 300
+- The persona classification uses hard thresholds (500 employees OR $10M revenue) for consistency
+
+===========================================
+END OF PROMPT TEMPLATE
+===========================================
