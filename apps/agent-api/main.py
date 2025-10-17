@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 
 from app.routes import leads_router
+from app.routes.experiments import router as experiments_router
+from app.routes.dashboard import router as dashboard_router
 from app.models.base import SessionLocal
 from app.models.lead import Lead
 
@@ -62,6 +64,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(leads_router)
+app.include_router(experiments_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/")
