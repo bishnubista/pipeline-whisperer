@@ -39,9 +39,11 @@ class LightfieldSimulator:
         company_name = fake.company()
         domain = company_name.lower().replace(" ", "").replace(",", "") + ".com"
 
+        from datetime import timezone as tz
+
         lead = {
             "event_type": "lead.created",
-            "timestamp": datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
+            "timestamp": datetime.now(tz.utc).isoformat().replace("+00:00", "Z"),
             "lightfield_id": f"lf_{fake.uuid4()}",
             "company": {
                 "name": company_name,
