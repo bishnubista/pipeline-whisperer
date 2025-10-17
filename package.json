@@ -1,0 +1,34 @@
+{
+  "name": "pipeline-whisperer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autonomous GTM agent for the Context Engineering Hackathon",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:web": "cd apps/web && pnpm dev",
+    "dev:api": "cd apps/agent-api && source venv/bin/activate && python main.py",
+    "build:web": "cd apps/web && pnpm build",
+    "setup": "./scripts/setup-dev.sh",
+    "infra:start": "./scripts/start-infra.sh",
+    "infra:stop": "docker compose -f docker/docker-compose.yaml down",
+    "infra:logs": "docker compose -f docker/docker-compose.yaml logs -f"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/pipeline-whisperer-agent"
+  },
+  "keywords": [
+    "hackathon",
+    "gtm",
+    "automation",
+    "redpanda",
+    "lightfield",
+    "stackai",
+    "truefoundry",
+    "sentry"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,27 @@
+# FastAPI and server
+fastapi==0.110.1
+uvicorn[standard]==0.29.0
+pydantic==2.7.1
+pydantic-settings==2.2.1
+
+# Database
+sqlalchemy==2.0.29
+psycopg[binary]==3.1.18
+alembic==1.13.1
+
+# Kafka/Redpanda
+confluent-kafka==2.3.0
+
+# HTTP client
+httpx==0.27.0
+
+# Monitoring
+sentry-sdk==1.43.1
+
+# Sponsor SDKs (to be confirmed)
+# stackai==0.5.0  # Uncomment when credentials available
+# truefoundry==0.7.0  # Uncomment when credentials available
+
+# Utilities
+python-dotenv==1.0.1
+python-multipart==0.0.9
