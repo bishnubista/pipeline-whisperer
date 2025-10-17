@@ -8,6 +8,11 @@ from contextlib import asynccontextmanager
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
+
+from app.routes import leads_router
+from app.models.base import SessionLocal
+from app.models.lead import Lead
 
 # Initialize Sentry
 sentry_sdk.init(
@@ -50,6 +55,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(leads_router)
+
 
 @app.get("/")
 async def root():
@@ -75,12 +83,22 @@ async def health():
 
 @app.get("/metrics")
 async def metrics():
-    """Basic metrics endpoint"""
-    return {
-        "leads_processed": 0,
-        "outreach_sent": 0,
-        "conversions": 0,
-    }
+    """Basic metrics endpoint with real data"""
+    db = SessionLocal()
+    try:
+        total_leads = db.query(func.count(Lead.id)).scalar() or 0
+        scored_leads = db.query(func.count(Lead.id)).filter(Lead.score.isnot(None)).scalar() or 0
+        avg_score = db.query(func.avg(Lead.score)).scalar() or 0.0
+
+        return {
+            "leads_total": total_leads,
+            "leads_scored": scored_leads,
+            "avg_score": round(avg_score, 3),
+            "outreach_sent": 0,  # TODO: implement
+            "conversions": 0,  # TODO: implement
+        }
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
