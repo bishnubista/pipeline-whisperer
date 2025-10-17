@@ -34,7 +34,9 @@ class Settings(BaseSettings):
 
     # stackAI
     stackai_api_key: str | None = None
-    stackai_project_id: str | None = None
+    stackai_org_id: str | None = None
+    stackai_flow_id: str | None = None
+    stackai_base_url: str = "https://api.stack-ai.com"
 
     # Truefoundry
     truefoundry_api_key: str | None = None

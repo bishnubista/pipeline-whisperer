@@ -25,6 +25,7 @@ from app.config.settings import settings
 from app.models.base import SessionLocal
 from app.models.lead import Lead, LeadStatus, LeadPersona
 from app.services.kafka_producer import get_kafka_producer
+from app.services.stackai_client import get_stackai_client
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -65,13 +66,18 @@ class LeadScorerWorker:
 
         self.producer = get_kafka_producer()
         self.db: Session = SessionLocal()
+        self.stackai_client = get_stackai_client()
 
         logger.info(f"Lead scorer worker initialized")
         logger.info(f"Subscribed to: {settings.kafka_topic_leads_raw}")
 
+        # Check Stack AI client status
+        health = self.stackai_client.health_check()
+        logger.info(f"Stack AI status: {health['status']}")
+
     def score_lead_with_stackai(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Score lead using stackAI API (mock implementation for now)
+        Score lead using Stack AI API
 
         Args:
             lead_data: Raw lead data from Lightfield
@@ -79,20 +85,65 @@ class LeadScorerWorker:
         Returns:
             Scoring results with score and persona
         """
-        # TODO: Replace with actual stackAI API call when credentials available
-        if settings.demo_mode or not settings.stackai_api_key:
-            logger.info("Using mock stackAI scoring (demo mode)")
-            return self._mock_stackai_scoring(lead_data)
+        # Extract company data for Stack AI
+        company = lead_data.get('company', {})
+        metadata = lead_data.get('metadata', {})
 
-        # Real stackAI integration would go here
-        # response = httpx.post(
-        #     f"{stackai_base_url}/score",
-        #     headers={"Authorization": f"Bearer {settings.stackai_api_key}"},
-        #     json=lead_data
-        # )
-        # return response.json()
+        # Map Lightfield data to Stack AI format
+        stackai_input = {
+            "company_name": company.get('name', 'Unknown'),
+            "industry": company.get('industry', 'unknown'),
+            "employee_count": self._parse_employee_count(company.get('size', '1-10')),
+            "revenue": self._estimate_revenue(metadata.get('budget_range', 'unknown')),
+            "website": company.get('website', ''),
+        }
 
-        return self._mock_stackai_scoring(lead_data)
+        # Call Stack AI client
+        result = self.stackai_client.score_lead(stackai_input)
+
+        # Map personas to our enum
+        persona_map = {
+            "enterprise": LeadPersona.ENTERPRISE,
+            "smb": LeadPersona.SMB,
+            "startup": LeadPersona.STARTUP,
+            "individual": LeadPersona.INDIVIDUAL,
+        }
+
+        persona_value = result.get('persona', 'smb').lower()
+        persona = persona_map.get(persona_value, LeadPersona.SMB)
+
+        return {
+            'score': result.get('score', 0.5),
+            'persona': persona.value,
+            'confidence': 0.85,  # Stack AI doesn't return confidence, use default
+            'reasoning': result.get('reasoning', 'Stack AI scoring'),
+            'model_version': 'stackai-v1.0',
+            'is_mock': result.get('mock', False),
+        }
+
+    def _parse_employee_count(self, size_range: str) -> int:
+        """Convert employee size range to approximate number"""
+        size_map = {
+            '1-10': 5,
+            '11-50': 30,
+            '51-200': 125,
+            '201-1000': 600,
+            '1000+': 2000,
+        }
+        return size_map.get(size_range, 50)
+
+    def _estimate_revenue(self, budget_range: str) -> int:
+        """Estimate company revenue from budget range"""
+        # Rough heuristic: budget is usually 10-20% of revenue
+        budget_map = {
+            'unknown': 1_000_000,
+            '<10k': 100_000,
+            '10k-50k': 500_000,
+            '50k-100k': 1_000_000,
+            '100k-500k': 5_000_000,
+            '500k+': 15_000_000,
+        }
+        return budget_map.get(budget_range, 1_000_000)
 
     def _mock_stackai_scoring(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """Mock stackAI scoring for demo purposes"""
