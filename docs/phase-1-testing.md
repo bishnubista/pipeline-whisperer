@@ -39,8 +39,8 @@ INFO:     Uvicorn running on http://0.0.0.0:8000
 ### Terminal 2: Start Lead Scorer Worker
 
 ```bash
-cd /Users/bishnubista/Projects/hackathon/pipeline-whisperer-agent
-PYTHONPATH=apps/agent-api apps/agent-api/.venv/bin/python services/workers/lead_scorer_worker.py
+# From project root
+uv run --directory apps/agent-api python services/workers/lead_scorer_worker.py
 ```
 
 Expected output:
@@ -56,8 +56,8 @@ INFO - Starting lead scorer worker...
 ### Terminal 3: Ingest Demo Leads
 
 ```bash
-cd /Users/bishnubista/Projects/hackathon/pipeline-whisperer-agent
-PYTHONPATH=apps/agent-api apps/agent-api/.venv/bin/python scripts/ingest_demo_leads.py
+# From project root
+uv run --directory apps/agent-api python scripts/ingest_demo_leads.py
 ```
 
 Interactive prompts:
@@ -112,7 +112,7 @@ Open http://localhost:8080 and verify:
 ### 1. Test Lead Simulator
 
 ```bash
-PYTHONPATH=apps/agent-api apps/agent-api/.venv/bin/python services/simulators/lightfield_simulator.py
+uv run --directory apps/agent-api python services/simulators/lightfield_simulator.py
 ```
 
 Should generate 3 sample leads with realistic data.
@@ -169,9 +169,10 @@ curl http://localhost:8000/
 
 **Problem:** `ModuleNotFoundError: No module named 'app'`
 
-**Solution:** Set PYTHONPATH:
+**Solution:** Scripts now use repo-relative path resolution. Ensure you're running from project root:
 ```bash
-export PYTHONPATH=/Users/bishnubista/Projects/hackathon/pipeline-whisperer-agent/apps/agent-api
+cd /path/to/pipeline-whisperer-agent
+uv run --directory apps/agent-api python services/workers/lead_scorer_worker.py
 ```
 
 ### Kafka connection refused
@@ -208,10 +209,10 @@ Expected performance (local MacBook):
 cd apps/agent-api && uv run python main.py
 
 # Terminal 2: Worker (wait 5s)
-PYTHONPATH=apps/agent-api apps/agent-api/.venv/bin/python services/workers/lead_scorer_worker.py
+uv run --directory apps/agent-api python services/workers/lead_scorer_worker.py
 
 # Terminal 3: Ingest (wait 5s)
-PYTHONPATH=apps/agent-api apps/agent-api/.venv/bin/python scripts/ingest_demo_leads.py
+uv run --directory apps/agent-api python scripts/ingest_demo_leads.py
 # Enter: 10 leads, 1.0s delay
 
 # Terminal 4: Watch results
