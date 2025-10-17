@@ -6,6 +6,7 @@ Before starting, ensure you have the following installed:
 
 - **Node.js** 20.11.1 LTS or higher
 - **Python** 3.11.8 or higher
+- **uv** (Python package installer) - auto-installed by setup script
 - **Docker** and Docker Compose v2.24.5 or higher
 - **pnpm** 9.1.1 (optional but recommended) or npm
 
@@ -19,8 +20,9 @@ Before starting, ensure you have the following installed:
 ```
 
 This script will:
-- Create a Python virtual environment
-- Install Python dependencies
+- Install `uv` (if not already installed) - blazing fast Python package installer
+- Create a Python virtual environment with `uv`
+- Install Python dependencies (parallel downloads, cached)
 - Install Node.js dependencies
 - Create `.env` from `.env.example`
 
@@ -59,9 +61,16 @@ Access Redpanda Console at: http://localhost:8080
 
 ### 4. Start the FastAPI Backend
 
+**Option 1: Using uv (recommended)**
 ```bash
 cd apps/agent-api
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+uv run python main.py
+```
+
+**Option 2: Using traditional venv**
+```bash
+cd apps/agent-api
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python main.py
 ```
 
@@ -150,9 +159,9 @@ Once you've configured Sentry DSNs, trigger a test event:
 ### Running Tests
 
 ```bash
-# Python tests (to be added)
+# Python tests with uv (to be added)
 cd apps/agent-api
-pytest
+uv run pytest
 
 # Next.js tests (to be added)
 cd apps/web
@@ -192,11 +201,17 @@ docker compose -f docker/docker-compose.yaml down -v
 ### Python Issues
 
 **Problem**: Module not found
-**Solution**: Ensure virtual environment is activated:
+**Solution**: Reinstall dependencies with uv:
 ```bash
 cd apps/agent-api
-source venv/bin/activate
-pip install -r requirements.txt
+uv pip install -e .
+# Or simply run: uv run python main.py (automatically manages env)
+```
+
+**Problem**: Want to add a new Python package
+**Solution**: Add to `pyproject.toml` dependencies and run:
+```bash
+uv pip install -e .
 ```
 
 ### Node.js Issues

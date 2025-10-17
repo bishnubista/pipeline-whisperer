@@ -8,12 +8,15 @@
   ],
   "scripts": {
     "dev:web": "cd apps/web && pnpm dev",
-    "dev:api": "cd apps/agent-api && source venv/bin/activate && python main.py",
+    "dev:api": "cd apps/agent-api && uv run python main.py",
     "build:web": "cd apps/web && pnpm build",
     "setup": "./scripts/setup-dev.sh",
     "infra:start": "./scripts/start-infra.sh",
     "infra:stop": "docker compose -f docker/docker-compose.yaml down",
-    "infra:logs": "docker compose -f docker/docker-compose.yaml logs -f"
+    "infra:logs": "docker compose -f docker/docker-compose.yaml logs -f",
+    "test:api": "cd apps/agent-api && uv run pytest",
+    "lint:api": "cd apps/agent-api && uv run ruff check .",
+    "format:api": "cd apps/agent-api && uv run black ."
   },
   "repository": {
     "type": "git",
