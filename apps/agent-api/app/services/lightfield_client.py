@@ -105,11 +105,13 @@ class LightfieldClient:
                 "message_id": result.get("message_id"),
                 "status": "sent",
                 "provider": "lightfield",
-                "sent_at": datetime.now(timezone.utc),
+                "sent_at": datetime.now(timezone.utc).isoformat(),
             }
 
         except httpx.HTTPError as e:
-            logger.error(f"Lightfield API error: {e}")
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            body = getattr(getattr(e, "response", None), "text", None)
+            logger.error(f"Lightfield API error status={status}: {e}; body={body}")
             return {
                 "message_id": None,
                 "status": "failed",
@@ -139,7 +141,7 @@ class LightfieldClient:
             "message_id": message_id,
             "status": "sent",
             "provider": "lightfield-simulator",
-            "sent_at": datetime.now(timezone.utc),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
             "simulated": True,
         }
 
@@ -167,13 +169,19 @@ class LightfieldClient:
             return response.json()
 
         except httpx.HTTPError as e:
-            logger.error(f"Lightfield status check error: {e}")
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            body = getattr(getattr(e, "response", None), "text", None)
+            logger.error(f"Lightfield status check error status={status}: {e}; body={body}")
             return {"message_id": message_id, "status": "unknown", "error": str(e)}
+
+    def close(self):
+        """Explicitly close HTTP client"""
+        if getattr(self, 'client', None):
+            self.client.close()
 
     def __del__(self):
         """Cleanup HTTP client"""
-        if getattr(self, 'client', None):
-            self.client.close()
+        self.close()
 
 
 # Singleton instance
