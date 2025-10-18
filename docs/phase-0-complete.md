@@ -28,7 +28,7 @@ Created comprehensive environment template with all required credentials:
 
 **Essential Services**:
 - Lightfield CRM (API key, base URL, webhook secret)
-- stackAI (API key, project ID)
+- OpenAI (API key, project ID)
 - Truefoundry (API key, workspace, base URL)
 - Sentry (DSNs for Next.js and Python)
 
@@ -56,7 +56,7 @@ Created comprehensive environment template with all required credentials:
 
 **Kafka Topics** (auto-created):
 - `leads.raw` - Raw Lightfield lead events
-- `leads.scored` - stackAI-scored leads
+- `leads.scored` - OpenAI-scored leads
 - `outreach.events` - Truefoundry outreach actions
 
 ### 4. Next.js Frontend (apps/web)
@@ -200,7 +200,7 @@ With Phase 0 complete, we're ready to implement:
 
 1. **Lightfield webhook receiver** or simulator
 2. **Redpanda producer** for raw lead events
-3. **stackAI integration** for lead scoring
+3. **OpenAI integration** for lead scoring
 4. **PostgreSQL models** for lead persistence
 5. **Basic dashboard** showing real-time lead flow
 

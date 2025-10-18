@@ -7,6 +7,11 @@ import logging
 import httpx
 from typing import Dict, Any, Optional
 
+try:
+    from app.config.settings import settings as app_settings
+except ImportError:
+    app_settings = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,9 +24,14 @@ class TruefoundryClient:
         workspace: Optional[str] = None,
         base_url: Optional[str] = None,
     ):
-        self.api_key = api_key or os.getenv("TRUEFOUNDRY_API_KEY")
-        self.workspace = workspace or os.getenv("TRUEFOUNDRY_WORKSPACE")
-        self.base_url = (base_url or os.getenv("TRUEFOUNDRY_BASE_URL", "https://api.truefoundry.com")).rstrip("/")
+        if app_settings:
+            self.api_key = api_key or app_settings.truefoundry_api_key or os.getenv("TRUEFOUNDRY_API_KEY")
+            self.workspace = workspace or app_settings.truefoundry_workspace or os.getenv("TRUEFOUNDRY_WORKSPACE")
+            self.base_url = (base_url or app_settings.truefoundry_base_url or os.getenv("TRUEFOUNDRY_BASE_URL", "https://api.truefoundry.com")).rstrip("/")
+        else:
+            self.api_key = api_key or os.getenv("TRUEFOUNDRY_API_KEY")
+            self.workspace = workspace or os.getenv("TRUEFOUNDRY_WORKSPACE")
+            self.base_url = (base_url or os.getenv("TRUEFOUNDRY_BASE_URL", "https://api.truefoundry.com")).rstrip("/")
 
         if not self.api_key or self.api_key.startswith("your_"):
             logger.warning("Truefoundry API key not configured - using mock mode")
@@ -29,14 +39,16 @@ class TruefoundryClient:
         else:
             self.mock_mode = False
 
-        self.client = httpx.Client(
-            base_url=self.base_url,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=30.0,
-        )
+        self.client = None
+        if not self.mock_mode:
+            self.client = httpx.Client(
+                base_url=self.base_url,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=30.0,
+            )
 
     def generate_personalized_message(
         self,
@@ -57,7 +69,7 @@ class TruefoundryClient:
         Returns:
             Dict with 'subject' and 'body' keys
         """
-        if self.mock_mode:
+        if self.mock_mode or not self.client:
             return self._mock_generate_message(template, lead_data)
 
         try:
@@ -110,7 +122,7 @@ class TruefoundryClient:
         Returns:
             Agent deployment ID
         """
-        if self.mock_mode:
+        if self.mock_mode or not self.client:
             logger.info("Mock mode: Skipping agent deployment")
             return "mock-agent-deployment-id"
 
@@ -126,7 +138,7 @@ class TruefoundryClient:
 
     def __del__(self):
         """Cleanup HTTP client"""
-        if hasattr(self, 'client'):
+        if getattr(self, 'client', None):
             self.client.close()
 
 

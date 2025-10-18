@@ -84,7 +84,7 @@ class KafkaProducerService:
         Publish a scored lead to the leads.scored topic
 
         Args:
-            lead_data: Scored lead with stackAI results
+            lead_data: Scored lead with AI results
 
         Returns:
             bool: True if successfully queued, False otherwise

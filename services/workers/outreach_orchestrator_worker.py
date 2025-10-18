@@ -267,7 +267,7 @@ def main():
 
     # Kafka consumer configuration
     consumer_config = {
-        'bootstrap.servers': settings.kafka_brokers,
+        'bootstrap.servers': settings.redpanda_brokers,
         'group.id': 'outreach-orchestrator',
         'auto.offset.reset': 'earliest',
         'enable.auto.commit': False,
@@ -276,7 +276,7 @@ def main():
     consumer = Consumer(consumer_config)
     consumer.subscribe(['leads.scored'])
 
-    logger.info(f"📡 Subscribed to leads.scored (brokers: {settings.kafka_brokers})")
+    logger.info(f"📡 Subscribed to leads.scored (brokers: {settings.redpanda_brokers})")
 
     processed_count = 0
     error_count = 0

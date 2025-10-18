@@ -51,13 +51,12 @@ def check_env():
     print("🔑 API Keys (Optional for Phase 1):")
     print()
 
-    # stackAI
-    if settings.stackai_api_key and settings.stackai_api_key != "your_stackai_api_key_here":
-        print(f"✅ stackAI API Key: {settings.stackai_api_key[:10]}...")
-        if settings.stackai_project_id:
-            print(f"✅ stackAI Project ID: {settings.stackai_project_id}")
+    # OpenAI scoring
+    if settings.openai_api_key and "your_" not in settings.openai_api_key:
+        print(f"✅ OpenAI API Key: {settings.openai_api_key[:6]}***")
+        print(f"✅ OpenAI model: {settings.openai_model}")
     else:
-        warnings.append("stackAI API key not configured (using mock scoring)")
+        warnings.append("OpenAI API key not configured (using mock scoring)")
 
     # Sentry
     if settings.sentry_dsn_python and "your_" not in settings.sentry_dsn_python:

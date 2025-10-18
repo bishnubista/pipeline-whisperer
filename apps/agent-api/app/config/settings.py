@@ -32,11 +32,11 @@ class Settings(BaseSettings):
     lightfield_api_key: str | None = None
     lightfield_base_url: str = "https://api.lightfield.ai/v1"
 
-    # stackAI
-    stackai_api_key: str | None = None
-    stackai_org_id: str | None = None
-    stackai_flow_id: str | None = None
-    stackai_base_url: str = "https://api.stack-ai.com"
+    # OpenAI scoring
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_timeout_seconds: float = 30.0
 
     # Truefoundry
     truefoundry_api_key: str | None = None
