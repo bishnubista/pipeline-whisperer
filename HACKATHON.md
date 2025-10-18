@@ -14,6 +14,6 @@ Sponsors:
 
 - Sentry
 - lightfield: Context rich CRM
-- stackAI - AI toolkit for the enterprise (on premise deployment)
+- OpenAI - AI toolkit for the enterprise (on premise deployment)
 - Redpanda - modern replacement of kafka
 - Truefoundry

@@ -163,7 +163,7 @@ L  New lead: FinanceFlow LLC            [10/17/2025, 8:49:39 PM]
 
 **Event Types Validated:**
 - ✅ `L` - Lead created (ingestion)
-- ✅ `S` - Lead scored (stackAI integration)
+- ✅ `S` - Lead scored (OpenAI integration)
 - ✅ `O` - Outreach sent (Truefoundry + Lightfield)
 
 **Auto-refresh Status:** ⏱️ Every 5 seconds ✅
@@ -295,7 +295,7 @@ GROUP BY experiment_id;
 
 ### Phase 1: Lead Ingestion & Scoring ✅
 - ✅ 26 leads created in database
-- ✅ 100% scoring success rate (stackAI integration)
+- ✅ 100% scoring success rate (OpenAI integration)
 - ✅ Personas assigned: `enterprise` and `smb`
 - ✅ Scores displayed in activity feed (0.61 - 0.92 range)
 
@@ -442,7 +442,7 @@ curl http://localhost:8000/experiments/overview/dashboard | python3 -m json.tool
 2. ✅ **Real-time observability** (Phase 4 dashboard)
 3. ✅ **Thompson Sampling A/B testing** (visible α/β parameters)
 4. ✅ **Human-in-the-loop controls** (Pause/Activate experiments)
-5. ✅ **Sponsor tool integration** (Lightfield, stackAI, Truefoundry references)
+5. ✅ **Sponsor tool integration** (Lightfield, OpenAI, Truefoundry references)
 
 **Test Confidence:** 100% - Ready for judging panel.
 

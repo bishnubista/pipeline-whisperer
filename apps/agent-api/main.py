@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Pipeline Whisperer Agent API",
-    description="Autonomous GTM agent powered by Lightfield, stackAI, Redpanda, Truefoundry, and Sentry",
+    description="Autonomous GTM agent powered by Lightfield, OpenAI, Redpanda, Truefoundry, and Sentry",
     version="0.1.0",
     lifespan=lifespan,
 )

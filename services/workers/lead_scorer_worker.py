@@ -1,13 +1,13 @@
 """
 Kafka consumer worker for processing raw leads
-Consumes from leads.raw, scores with stackAI, persists to DB, publishes to leads.scored
+Consumes from leads.raw, scores with OpenAI, persists to DB, publishes to leads.scored
 """
 import json
 import logging
 import sys
 import signal
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from confluent_kafka import Consumer, KafkaException
 from sqlalchemy.orm import Session
@@ -25,6 +25,7 @@ from app.config.settings import settings
 from app.models.base import SessionLocal
 from app.models.lead import Lead, LeadStatus, LeadPersona
 from app.services.kafka_producer import get_kafka_producer
+from app.services.openai_scoring_client import get_openai_scoring_client, OpenAIScoringClient
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
@@ -65,13 +66,18 @@ class LeadScorerWorker:
 
         self.producer = get_kafka_producer()
         self.db: Session = SessionLocal()
+        self.scoring_client: OpenAIScoringClient = get_openai_scoring_client()
 
         logger.info(f"Lead scorer worker initialized")
         logger.info(f"Subscribed to: {settings.kafka_topic_leads_raw}")
 
-    def score_lead_with_stackai(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
+        # Check scoring client status
+        health = self.scoring_client.health_check()
+        logger.info(f"Scoring client status: {health.get('status')}")
+
+    def score_lead_with_openai(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Score lead using stackAI API (mock implementation for now)
+        Score lead using OpenAI API
 
         Args:
             lead_data: Raw lead data from Lightfield
@@ -79,57 +85,149 @@ class LeadScorerWorker:
         Returns:
             Scoring results with score and persona
         """
-        # TODO: Replace with actual stackAI API call when credentials available
-        if settings.demo_mode or not settings.stackai_api_key:
-            logger.info("Using mock stackAI scoring (demo mode)")
-            return self._mock_stackai_scoring(lead_data)
-
-        # Real stackAI integration would go here
-        # response = httpx.post(
-        #     f"{stackai_base_url}/score",
-        #     headers={"Authorization": f"Bearer {settings.stackai_api_key}"},
-        #     json=lead_data
-        # )
-        # return response.json()
-
-        return self._mock_stackai_scoring(lead_data)
-
-    def _mock_stackai_scoring(self, lead_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Mock stackAI scoring for demo purposes"""
-        import random
-
+        # Extract company data for scoring
         company = lead_data.get('company', {})
         metadata = lead_data.get('metadata', {})
 
-        # Simple scoring logic based on company size and budget
-        score = 0.5
-        if company.get('size') in ['201-1000', '1000+']:
-            score += 0.2
-        if metadata.get('budget_range') in ['100k-500k', '500k+']:
-            score += 0.2
-        if metadata.get('timeline') in ['immediate', '1-3 months']:
-            score += 0.1
+        scoring_input = self._prepare_scoring_payload(company, metadata)
 
-        # Add some randomness
-        score = min(1.0, score + random.uniform(-0.1, 0.1))
+        # Call scoring client
+        result = self.scoring_client.score_lead(scoring_input)
 
-        # Determine persona
-        size = company.get('size', '1-10')
-        if size == '1000+':
-            persona = LeadPersona.ENTERPRISE
-        elif size in ['201-1000', '51-200']:
-            persona = LeadPersona.SMB
-        elif size == '11-50':
-            persona = LeadPersona.STARTUP
-        else:
-            persona = LeadPersona.INDIVIDUAL
+        persona_enum = self._to_persona_enum(result.get('persona'))
 
         return {
-            'score': round(score, 3),
-            'persona': persona.value,
-            'confidence': 0.85,
-            'reasoning': f"Company size {size}, budget {metadata.get('budget_range')}",
-            'model_version': 'mock-v1.0',
+            'score': float(result.get('score', 0.5)),
+            'persona': persona_enum.value,
+            'confidence': result.get('confidence'),
+            'reasoning': result.get('reasoning', 'OpenAI scoring'),
+            'model_version': result.get('model_version', 'openai-v1.0'),
+            'mock': result.get('mock', False),
+            'scoring_input': scoring_input,
+            'raw_response': result,
+            'scored_at': datetime.now(timezone.utc).isoformat(),
+        }
+
+    def _to_persona_enum(self, persona_value: Optional[str]) -> LeadPersona:
+        """Safely convert persona string to LeadPersona enum"""
+        if not persona_value:
+            return LeadPersona.UNKNOWN
+        persona_value = persona_value.lower()
+        try:
+            return LeadPersona(persona_value)
+        except ValueError:
+            return LeadPersona.UNKNOWN
+
+    def _prepare_scoring_payload(self, company: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize Lightfield company payload for scoring model input"""
+        size_bucket = company.get('size') or metadata.get('company_size')
+        budget_range = metadata.get('budget_range') or metadata.get('spend')
+
+        return {
+            "company_name": company.get('name') or "Unknown",
+            "industry": company.get('industry') or metadata.get('industry') or "unknown",
+            "employee_count": self._estimate_employee_count(size_bucket),
+            "revenue": self._estimate_revenue(budget_range),
+            "website": company.get('website') or metadata.get('website') or "",
+        }
+
+    def _estimate_employee_count(self, size: Optional[str]) -> int:
+        """Translate company size labels into approximate employee counts"""
+        if not size:
+            return 0
+
+        size = size.strip().lower()
+        bucket_map = {
+            "1-10": (1, 10),
+            "11-50": (11, 50),
+            "51-200": (51, 200),
+            "201-1000": (201, 1000),
+        }
+
+        if size.endswith("+"):
+            try:
+                lower = int(size.rstrip("+"))
+                upper = lower * 2
+                return (lower + upper) // 2
+            except ValueError:
+                return 0
+
+        if size in bucket_map:
+            lower, upper = bucket_map[size]
+            return (lower + upper) // 2
+
+        if "-" in size:
+            lower_str, upper_str = size.split("-", maxsplit=1)
+            try:
+                lower = int(lower_str)
+                upper = int(upper_str)
+                return (lower + upper) // 2
+            except ValueError:
+                return 0
+
+        try:
+            return int(size)
+        except ValueError:
+            return 0
+
+    def _estimate_revenue(self, budget_range: Optional[str]) -> float:
+        """Estimate company revenue from budget/tier information"""
+        if not budget_range:
+            return 0.0
+
+        budget_range = budget_range.strip().lower()
+        bucket_estimates = {
+            "<10k": 50_000,
+            "10k-50k": 200_000,
+            "50k-100k": 500_000,
+            "100k-500k": 2_500_000,
+            "500k+": 6_000_000,
+        }
+
+        if budget_range in bucket_estimates:
+            return float(bucket_estimates[budget_range])
+
+        if "-" in budget_range:
+            lower_str, upper_str = budget_range.split("-", maxsplit=1)
+            try:
+                lower = float(lower_str.replace("k", "000").replace("$", ""))
+                upper = float(upper_str.replace("k", "000").replace("$", ""))
+                return (lower + upper) / 2.0
+            except ValueError:
+                return 0.0
+
+        if budget_range.endswith("+"):
+            try:
+                value = float(budget_range.rstrip("+").replace("k", "000").replace("$", ""))
+                return value * 1.5
+            except ValueError:
+                return 0.0
+
+        return 0.0
+
+    def _build_scoring_metadata(self, scoring_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Prepare metadata payload for persistence"""
+        return {
+            "reasoning": scoring_result.get("reasoning"),
+            "model_version": scoring_result.get("model_version"),
+            "confidence": scoring_result.get("confidence"),
+            "mock": scoring_result.get("mock", False),
+            "scoring_input": scoring_result.get("scoring_input"),
+            "raw_response": scoring_result.get("raw_response"),
+            "scored_at": scoring_result.get("scored_at"),
+        }
+
+    def _build_public_scoring_payload(self, scoring_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Trim scoring payload for downstream events"""
+        return {
+            "score": scoring_result.get("score"),
+            "persona": scoring_result.get("persona"),
+            "reasoning": scoring_result.get("reasoning"),
+            "model_version": scoring_result.get("model_version"),
+            "mock": scoring_result.get("mock", False),
+            "confidence": scoring_result.get("confidence"),
+            "scoring_input": scoring_result.get("scoring_input"),
+            "scored_at": scoring_result.get("scored_at"),
         }
 
     def process_lead(self, lead_data: Dict[str, Any]):
@@ -147,9 +245,11 @@ class LeadScorerWorker:
                 logger.info(f"Lead {lightfield_id} already processed, skipping")
                 return
 
-            # Score with stackAI
-            scoring_result = self.score_lead_with_stackai(lead_data)
-            logger.info(f"Scored lead {lightfield_id}: {scoring_result['score']:.3f}")
+            # Score with OpenAI
+            scoring_result = self.score_lead_with_openai(lead_data)
+            score_value = float(scoring_result.get('score', 0.0))
+            persona_enum = self._to_persona_enum(scoring_result.get('persona'))
+            logger.info(f"Scored lead {lightfield_id}: {score_value:.3f} ({persona_enum.value})")
 
             # Create Lead record
             company = lead_data.get('company', {})
@@ -165,9 +265,9 @@ class LeadScorerWorker:
                 company_size=company.get('size'),
                 website=company.get('website'),
                 raw_payload=lead_data,
-                score=scoring_result['score'],
-                persona=LeadPersona(scoring_result['persona']),
-                scoring_metadata=scoring_result,
+                score=score_value,
+                persona=persona_enum,
+                scoring_metadata=self._build_scoring_metadata(scoring_result),
                 status=LeadStatus.SCORED,
                 scored_at=datetime.now(timezone.utc),
             )
@@ -182,7 +282,7 @@ class LeadScorerWorker:
             # Publish scored lead to leads.scored topic
             scored_event = {
                 **lead_data,
-                'scoring': scoring_result,
+                'scoring': self._build_public_scoring_payload(scoring_result),
                 'db_id': lead.id,
                 'processed_at': datetime.now(timezone.utc).isoformat(),
             }
@@ -192,7 +292,11 @@ class LeadScorerWorker:
             sentry_sdk.capture_message(
                 f"Lead scored successfully: {lightfield_id}",
                 level="info",
-                extras={"score": scoring_result['score'], "persona": scoring_result['persona']}
+                extras={
+                    "score": score_value,
+                    "persona": persona_enum.value,
+                    "mock_scoring": scoring_result.get('mock', False),
+                }
             )
 
         except Exception as e:

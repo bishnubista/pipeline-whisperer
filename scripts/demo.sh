@@ -19,7 +19,7 @@ echo "==========================================================================
 echo ""
 echo -e "${CYAN}This demo showcases the complete autonomous pipeline:${NC}"
 echo "  1. Lead ingestion from Lightfield"
-echo "  2. AI-powered scoring with stackAI"
+echo "  2. AI-powered scoring with OpenAI"
 echo "  3. Thompson Sampling experiment selection"
 echo "  4. Personalized outreach via Truefoundry + Lightfield"
 echo "  5. Autonomous learning from conversions"

@@ -9,7 +9,7 @@ Ran `python scripts/check_env.py` - Results:
 ✅ Kafka Brokers: localhost:19092
 ✅ Topics: leads.raw, leads.scored, outreach.events
 ✅ API: 0.0.0.0:8000
-✅ stackAI: API key configured
+✅ OpenAI: API key configured
 ⚠️  Sentry: Not configured (monitoring disabled)
 ℹ️  Lightfield: Using simulator
 ℹ️  Truefoundry: Phase 2

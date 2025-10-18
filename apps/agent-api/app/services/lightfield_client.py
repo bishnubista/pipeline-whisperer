@@ -8,6 +8,11 @@ import httpx
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 
+try:
+    from app.config.settings import settings as app_settings
+except ImportError:
+    app_settings = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,13 +25,19 @@ class LightfieldClient:
         base_url: Optional[str] = None,
         simulate: Optional[bool] = None,
     ):
-        self.api_key = api_key or os.getenv("LIGHTFIELD_API_KEY")
-        self.base_url = (base_url or os.getenv("LIGHTFIELD_BASE_URL", "https://api.lightfield.ai/v1")).rstrip("/")
+        if app_settings:
+            self.api_key = api_key or app_settings.lightfield_api_key or os.getenv("LIGHTFIELD_API_KEY")
+            self.base_url = (base_url or app_settings.lightfield_base_url or os.getenv("LIGHTFIELD_BASE_URL", "https://api.lightfield.ai/v1")).rstrip("/")
+            default_simulate = app_settings.simulate_lightfield
+        else:
+            self.api_key = api_key or os.getenv("LIGHTFIELD_API_KEY")
+            self.base_url = (base_url or os.getenv("LIGHTFIELD_BASE_URL", "https://api.lightfield.ai/v1")).rstrip("/")
+            default_simulate = os.getenv("SIMULATE_LIGHTFIELD", "true").lower() == "true"
 
         # Check if we should simulate (for demo/testing)
         if simulate is None:
-            simulate = os.getenv("SIMULATE_LIGHTFIELD", "true").lower() == "true"
-        self.simulate = simulate
+            simulate = default_simulate
+        self.simulate = bool(simulate)
 
         if not self.api_key or self.api_key.startswith("your_") or self.simulate:
             logger.info("Lightfield API in simulation mode (API key not configured or SIMULATE_LIGHTFIELD=true)")
@@ -34,14 +45,16 @@ class LightfieldClient:
         else:
             self.mock_mode = False
 
-        self.client = httpx.Client(
-            base_url=self.base_url,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=30.0,
-        )
+        self.client = None
+        if not self.mock_mode:
+            self.client = httpx.Client(
+                base_url=self.base_url,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                timeout=30.0,
+            )
 
     def send_email(
         self,
@@ -92,11 +105,13 @@ class LightfieldClient:
                 "message_id": result.get("message_id"),
                 "status": "sent",
                 "provider": "lightfield",
-                "sent_at": datetime.now(timezone.utc),
+                "sent_at": datetime.now(timezone.utc).isoformat(),
             }
 
         except httpx.HTTPError as e:
-            logger.error(f"Lightfield API error: {e}")
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            body = getattr(getattr(e, "response", None), "text", None)
+            logger.error(f"Lightfield API error status={status}: {e}; body={body}")
             return {
                 "message_id": None,
                 "status": "failed",
@@ -126,7 +141,7 @@ class LightfieldClient:
             "message_id": message_id,
             "status": "sent",
             "provider": "lightfield-simulator",
-            "sent_at": datetime.now(timezone.utc),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
             "simulated": True,
         }
 
@@ -154,13 +169,19 @@ class LightfieldClient:
             return response.json()
 
         except httpx.HTTPError as e:
-            logger.error(f"Lightfield status check error: {e}")
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            body = getattr(getattr(e, "response", None), "text", None)
+            logger.error(f"Lightfield status check error status={status}: {e}; body={body}")
             return {"message_id": message_id, "status": "unknown", "error": str(e)}
+
+    def close(self):
+        """Explicitly close HTTP client"""
+        if getattr(self, 'client', None):
+            self.client.close()
 
     def __del__(self):
         """Cleanup HTTP client"""
-        if hasattr(self, 'client'):
-            self.client.close()
+        self.close()
 
 
 # Singleton instance

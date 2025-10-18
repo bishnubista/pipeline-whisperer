@@ -33,7 +33,7 @@ Edit the `.env` file and add your credentials:
 ```bash
 # Required for full functionality
 LIGHTFIELD_API_KEY=your_lightfield_key
-STACKAI_API_KEY=your_stackai_key
+OPENAI_API_KEY=your_openai_key
 TRUEFOUNDRY_API_KEY=your_truefoundry_key
 SENTRY_DSN_NEXTJS=your_sentry_dsn
 SENTRY_DSN_PYTHON=your_sentry_dsn

@@ -10,7 +10,7 @@ from .base import Base
 class LeadStatus(str, enum.Enum):
     """Lead processing status"""
     RAW = "raw"  # Just ingested from Lightfield
-    SCORED = "scored"  # stackAI scoring complete
+    SCORED = "scored"  # AI scoring complete
     QUEUED = "queued"  # Ready for outreach
     CONTACTED = "contacted"  # Outreach sent
     RESPONDED = "responded"  # Lead responded
@@ -20,7 +20,7 @@ class LeadStatus(str, enum.Enum):
 
 
 class LeadPersona(str, enum.Enum):
-    """Lead persona classifications from stackAI"""
+    """Lead persona classifications from AI scoring"""
     ENTERPRISE = "enterprise"  # Large company, high value
     SMB = "smb"  # Small/medium business
     STARTUP = "startup"  # Early stage company
@@ -29,7 +29,7 @@ class LeadPersona(str, enum.Enum):
 
 
 class Lead(Base):
-    """Lead model with Lightfield data and stackAI scoring"""
+    """Lead model with Lightfield data and AI scoring"""
     __tablename__ = "leads"
 
     # Primary key
@@ -48,10 +48,10 @@ class Lead(Base):
     # Raw event data from Lightfield
     raw_payload = Column(JSON)
 
-    # stackAI scoring results
+    # AI scoring results
     score = Column(Float)  # 0.0-1.0 lead quality score
     persona = Column(SQLEnum(LeadPersona), default=LeadPersona.UNKNOWN)
-    scoring_metadata = Column(JSON)  # stackAI response details
+    scoring_metadata = Column(JSON)  # AI scoring response details
 
     # Processing status
     status = Column(SQLEnum(LeadStatus), default=LeadStatus.RAW, index=True)

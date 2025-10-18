@@ -5,7 +5,7 @@
 Phase 1 implements the complete lead ingestion pipeline:
 1. **Lightfield simulator** generates realistic leads
 2. **Kafka producer** publishes to `leads.raw` topic
-3. **Worker consumes** from Kafka, scores with stackAI (mock), persists to DB
+3. **Worker consumes** from Kafka, scores with OpenAI (mock), persists to DB
 4. **API endpoints** expose lead data
 5. **Sentry** tracks all operations
 
@@ -191,13 +191,13 @@ docker compose -f docker/docker-compose.yaml down
 Expected performance (local MacBook):
 - **Lead generation:** ~100 leads/second
 - **Kafka publish:** ~500 messages/second
-- **Scoring + DB persist:** ~50 leads/second (with mock stackAI)
+- **Scoring + DB persist:** ~50 leads/second (with mock OpenAI)
 - **API response time:** <50ms for list, <10ms for single lead
 
 ## Next Steps
 
 - [ ] Switch to PostgreSQL for concurrent writes
-- [ ] Implement real stackAI API integration
+- [ ] Implement real OpenAI API integration
 - [ ] Add Truefoundry outreach orchestration (Phase 2)
 - [ ] Build Next.js dashboard
 - [ ] Add authentication & rate limiting
