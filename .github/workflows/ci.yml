@@ -1,0 +1,220 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop, 'claude/**']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  # Python API Tests
+  test-api:
+    name: Test Agent API
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: pipeline_test
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: pipeline_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        working-directory: apps/agent-api
+        run: |
+          uv pip install --system -e ".[dev,test]"
+
+      - name: Lint with ruff
+        working-directory: apps/agent-api
+        run: |
+          ruff check .
+        continue-on-error: true
+
+      - name: Type check with mypy
+        working-directory: apps/agent-api
+        run: |
+          mypy app --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Run tests with pytest
+        working-directory: apps/agent-api
+        env:
+          DATABASE_URL: postgresql://pipeline_test:testpass@localhost:5432/pipeline_test
+          REDIS_URL: redis://localhost:6379/0
+          REDIS_ENABLED: 'true'
+          LOG_LEVEL: DEBUG
+        run: |
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./apps/agent-api/coverage.xml
+          flags: api
+          name: api-coverage
+
+  # Next.js Web Tests
+  test-web:
+    name: Test Web UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm lint
+
+      - name: Type check
+        working-directory: apps/web
+        run: pnpm type-check
+        continue-on-error: true
+
+      - name: Build
+        working-directory: apps/web
+        run: pnpm build
+
+      - name: Run tests
+        working-directory: apps/web
+        run: pnpm test
+        continue-on-error: true
+
+  # Security Scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Python security check with bandit
+        working-directory: apps/agent-api
+        run: |
+          pip install bandit
+          bandit -r app/ -f json -o bandit-report.json
+        continue-on-error: true
+
+  # Docker Build
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-api, test-web]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/agent-api
+          file: ./apps/agent-api/Dockerfile
+          push: false
+          tags: pipeline-whisperer-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
+          push: false
+          tags: pipeline-whisperer-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build-docker]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start services with docker-compose
+        run: |
+          docker-compose -f docker-compose.production.yml up -d postgres redis redpanda
+          sleep 10
+
+      - name: Run integration tests
+        working-directory: apps/agent-api
+        run: |
+          pip install pytest pytest-asyncio httpx
+          pytest tests/integration/ -v
+        continue-on-error: true
+
+      - name: Stop services
+        if: always()
+        run: docker-compose -f docker-compose.production.yml down

@@ -47,3 +47,77 @@
   - Record demo walkthrough, produce slides, and rehearse 3-minute pitch referencing the sponsor tools.
   - Add README setup commands, environment samples, and troubleshooting tips.
 - **Validation**: All tests green in CI (or local run), recorded demo hits the autonomy loop in under 3 minutes, and README instructions reproduce the flow on a fresh machine.
+
+### Phase 6 — Production-Ready Hardening
+- **Goals**: Transform the hackathon demo into a production-grade system with enterprise reliability, security, and scalability.
+- **Tasks (TODO)**:
+  - **Error Handling & Resilience**:
+    - Add comprehensive error handling with exponential backoff and circuit breakers
+    - Implement graceful degradation for all external service failures
+    - Add request retry logic with configurable limits
+    - Create custom exception hierarchy with proper HTTP status codes
+  - **Logging & Observability**:
+    - Implement structured JSON logging with correlation IDs
+    - Add comprehensive health checks (readiness, liveness, startup probes)
+    - Create detailed metrics endpoints for Prometheus/Grafana
+    - Add distributed tracing spans for request flows
+  - **Security Hardening**:
+    - Add rate limiting per IP and per API key
+    - Implement API key authentication middleware
+    - Add input validation and sanitization for all endpoints
+    - Enable HTTPS/TLS with certificate management
+    - Add CORS security headers and CSP policies
+    - Implement secrets management (Vault/AWS Secrets Manager)
+  - **Performance Optimization**:
+    - Add Redis caching layer for lead scores and experiments
+    - Implement database connection pooling (SQLAlchemy pool)
+    - Add async batch processing for high-volume operations
+    - Optimize database queries with proper indexes
+    - Implement response compression (gzip)
+  - **Testing & Quality**:
+    - Write unit tests for all services (>80% coverage)
+    - Add integration tests for end-to-end flows
+    - Create load tests (Locust/k6) for performance benchmarks
+    - Add contract tests for external API integrations
+    - Implement pre-commit hooks for linting and formatting
+  - **Deployment & Infrastructure**:
+    - Create production Dockerfiles with multi-stage builds
+    - Add docker-compose for full stack deployment
+    - Create Kubernetes manifests (deployment, service, ingress, HPA)
+    - Add GitHub Actions CI/CD pipeline with automated tests
+    - Implement blue-green deployment strategy
+    - Add infrastructure-as-code (Terraform/Pulumi)
+  - **Configuration Management**:
+    - Add environment-specific configs (dev, staging, prod)
+    - Implement feature flags for gradual rollouts
+    - Add configuration validation on startup
+    - Create environment variable documentation
+  - **Data Management**:
+    - Add database migration versioning (Alembic)
+    - Implement automated backup scripts with retention policies
+    - Add data recovery procedures and runbooks
+    - Create data export/import utilities
+    - Add GDPR compliance utilities (data deletion, export)
+  - **Documentation**:
+    - Write comprehensive API documentation (OpenAPI/Swagger)
+    - Create deployment runbooks and troubleshooting guides
+    - Add architecture decision records (ADRs)
+    - Document monitoring and alerting setup
+    - Create incident response playbooks
+  - **Monitoring & Alerts**:
+    - Configure Sentry error tracking with custom contexts
+    - Add PagerDuty/Opsgenie integration for critical alerts
+    - Create SLA/SLO monitoring dashboards
+    - Add custom metrics for business KPIs
+    - Implement log aggregation (ELK/Loki)
+- **Validation**:
+  - All tests pass (unit, integration, load) with >80% coverage
+  - Health checks return detailed component status
+  - API responds to 1000 req/sec without errors
+  - Services recover automatically from failures
+  - Docker stack deploys successfully on fresh VM
+  - CI/CD pipeline deploys to staging environment
+  - Zero critical security vulnerabilities (OWASP Top 10)
+  - Complete API documentation accessible at `/docs`
+  - All environment variables validated on startup
+  - Graceful shutdown completes within 30 seconds
